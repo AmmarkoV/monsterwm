@@ -455,6 +455,7 @@ void enternotify(XEvent *e) {
  * restack clients
  * highlight borders and set active window property and input focus
  * for the current/active/focused client
+ * windows always get borders, except if fullscreen
  *
  * stack order by client properties, top to bottom:
  *  - current when floating or transient
@@ -463,12 +464,6 @@ void enternotify(XEvent *e) {
  *  - current when fullscreen
  *  - fullscreen windows
  *  - tiled windows
- *
- * a window should have borders in any case, except if
- *  - the window is fullscreen
- *  - the window is not floating or transient and
- *      - the mode is MONOCLE or,
- *      - it is the only window on screen
  *
  * finally button events are grabbed for the new client. There
  * is no need for button events to be grabbed again, except if
@@ -495,8 +490,7 @@ void focus(Client *c, Desktop *d) {
     w[(d->curr->isfloat || d->curr->istrans) ? 0:ft] = d->curr->win;
     for (fl += !ISFFT(d->curr) ? 1:0, c = d->head; c; c = c->next) {
         XSetWindowBorder(dis, c->win, c == d->curr ? win_focus:win_unfocus);
-        XSetWindowBorderWidth(dis, c->win, c->isfull || (!ISFFT(c) &&
-            (d->mode == MONOCLE || !d->head->next)) ? 0:BORDER_WIDTH);
+        XSetWindowBorderWidth(dis, c->win, c->isfull ? 0:BORDER_WIDTH);
         if (c != d->curr) w[c->isfull ? --fl:ISFFT(c) ? --ft:--n] = c->win;
         if (CLICK_TO_FOCUS || c == d->curr) grabbuttons(c);
     }
@@ -742,7 +736,8 @@ void mousemotion(const Arg *arg) {
  * each window should cover all the available screen space
  */
 void monocle(int hh, int cy, Desktop *d) {
-    for (Client *c = d->head; c; c = c->next) if (!ISFFT(c)) XMVRSZ(dis, c->win, 0, cy, ww, hh);
+    for (Client *c = d->head; c; c = c->next) if (!ISFFT(c))
+        XMVRSZ(dis, c->win, 0, cy, ww - 2*BORDER_WIDTH, hh - 2*BORDER_WIDTH);
 }
 
 /**
