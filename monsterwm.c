@@ -596,11 +596,12 @@ void grid(int hh, int cy, Desktop *d) {
     for (cols = 0; cols <= n/2; cols++) if (cols*cols >= n) break; /* emulate square root */
     if (n == 0) return; else if (n == 5) cols = 2;
 
-    int rows = n/cols, ch = hh - BORDER_WIDTH, cw = (ww - BORDER_WIDTH)/(cols ? cols:1);
+    int rows = n/cols, ch = hh - USELESSGAP, cw = (ww - USELESSGAP)/(cols?cols:1);
     for (Client *c = d->head; c; c = c->next) {
         if (ISFFT(c)) continue; else ++i;
         if (i/rows + 1 > cols - n%cols) rows = n/cols + 1;
-        XMVRSZ(dis, c->win, cn*cw, cy + rn*ch/rows, cw - BORDER_WIDTH, ch/rows - BORDER_WIDTH);
+        XMVRSZ(dis, c->win, cn*cw + USELESSGAP, cy + rn*ch/rows + USELESSGAP,
+              cw - 2*BORDER_WIDTH - USELESSGAP, ch/rows - 2*BORDER_WIDTH - USELESSGAP);
         if (++rn >= rows) { rn = 0; cn++; }
     }
 }
@@ -742,7 +743,8 @@ void mousemotion(const Arg *arg) {
  * each window should cover all the available screen space
  */
 void monocle(int hh, int cy, Desktop *d) {
-    for (Client *c = d->head; c; c = c->next) if (!ISFFT(c)) XMVRSZ(dis, c->win, 0, cy, ww, hh);
+    for (Client *c = d->head; c; c = c->next) if (!ISFFT(c))
+        XMVRSZ(dis, c->win, USELESSGAP, cy + USELESSGAP, ww - 2*USELESSGAP, hh - 2*USELESSGAP);
 }
 
 /**
@@ -1081,21 +1083,25 @@ void stack(int hh, int cy, Desktop *d) {
      * should be added to the first stack client (p) so that it satisfies sasz,
      * and also, does not result in gaps created on the bottom of the screen.
      */
-    if (c && !n) XMVRSZ(dis, c->win, 0, cy, ww - 2*BORDER_WIDTH, hh - 2*BORDER_WIDTH);
+    if (c && !n) XMVRSZ(dis, c->win, USELESSGAP, cy + USELESSGAP, ww - 2*(BORDER_WIDTH + USELESSGAP),
+                                                                  hh - 2*(BORDER_WIDTH + USELESSGAP));
     if (!c || !n) return; else if (n > 1) { p = (z - d->sasz)%n + d->sasz; z = (z - d->sasz)/n; }
 
     /* tile the first non-floating, non-fullscreen window to cover the master area */
-    if (b) XMVRSZ(dis, c->win, 0, cy, ww - 2*BORDER_WIDTH, ma - BORDER_WIDTH);
-    else   XMVRSZ(dis, c->win, 0, cy, ma - BORDER_WIDTH, hh - 2*BORDER_WIDTH);
+    if (b) XMVRSZ(dis, c->win, USELESSGAP, cy + USELESSGAP, ww - 2*(BORDER_WIDTH + USELESSGAP),
+                                                            ma - 2*(BORDER_WIDTH + USELESSGAP));
+    else   XMVRSZ(dis, c->win, USELESSGAP, cy + USELESSGAP, ma - 2*(BORDER_WIDTH + USELESSGAP),
+                                                            hh - 2*(BORDER_WIDTH + USELESSGAP));
 
     /* tile the next non-floating, non-fullscreen (and first) stack window adding p */
     for (c = c->next; c && ISFFT(c); c = c->next);
-    int cx = b ? 0:ma, cw = (b ? hh:ww) - 2*BORDER_WIDTH - ma, ch = z - BORDER_WIDTH;
-    if (b) XMVRSZ(dis, c->win, cx, cy += ma, ch - BORDER_WIDTH + p, cw);
-    else   XMVRSZ(dis, c->win, cx, cy, cw, ch - BORDER_WIDTH + p);
+    int cx = b ? USELESSGAP:ma, ch = z - 2*BORDER_WIDTH - USELESSGAP,
+        cw = (b ? hh:ww) - 2*BORDER_WIDTH - ma - USELESSGAP;
+    if (b) XMVRSZ(dis, c->win, cx, cy += ma, ch - USELESSGAP + p, cw);
+    else   XMVRSZ(dis, c->win, cx, cy += USELESSGAP, cw, ch - USELESSGAP + p);
 
     /* tile the rest of the non-floating, non-fullscreen stack windows */
-    for (b ? (cx+=ch+p):(cy+=ch+p), c = c->next; c; c = c->next) {
+    for (b ? (cx += z+p-USELESSGAP):(cy += z+p-USELESSGAP), c = c->next; c; c = c->next) {
         if (ISFFT(c)) continue;
         if (b) { XMVRSZ(dis, c->win, cx, cy, ch, cw); cx += z; }
         else   { XMVRSZ(dis, c->win, cx, cy, cw, ch); cy += z; }
