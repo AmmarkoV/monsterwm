@@ -162,6 +162,7 @@ static void stack(int h, int y, Desktop *d);
 static void swap_master();
 static void switch_mode(const Arg *arg);
 static void tile(Desktop *d);
+static void showhide();
 static void togglepanel();
 static void unmapnotify(XEvent *e);
 static Bool wintoclient(Window w, Client **c, Desktop **d);
@@ -183,7 +184,7 @@ static int xerrorstart(Display *dis, XErrorEvent *ee);
  * dekstops     - array of managed desktops
  * currdeskidx  - which desktop is currently active
  */
-static Bool running = True;
+static Bool running = True, show = True;
 static int wh, ww, currdeskidx = 0, prevdeskidx = 0, retval = 0;
 static unsigned int numlockmask = 0, win_unfocus, win_focus;
 static Display *dis;
@@ -271,8 +272,8 @@ void buttonpress(XEvent *e) {
 void change_desktop(const Arg *arg) {
     if (arg->i == currdeskidx || arg->i < 0 || arg->i >= DESKTOPS) return;
     Desktop *d = &desktops[(prevdeskidx = currdeskidx)], *n = &desktops[(currdeskidx = arg->i)];
-    if (n->curr) XMapWindow(dis, n->curr->win);
-    for (Client *c = n->head; c; c = c->next) XMapWindow(dis, c->win);
+    if (show && n->curr) XMapWindow(dis, n->curr->win);
+    for (Client *c = n->head; show && c; c = c->next) XMapWindow(dis, c->win);
     for (Client *c = d->head; c; c = c->next) if (c != d->curr) XUnmapWindow(dis, c->win);
     if (d->curr) XUnmapWindow(dis, d->curr->win);
     if (n->head) { tile(n); focus(n->curr, n); }
@@ -685,7 +686,7 @@ void maprequest(XEvent *e) {
         setfullscreen(c, d, (*(Atom *)state == netatoms[NET_FULLSCREEN]));
     if (state) XFree(state);
 
-    if (currdeskidx == newdsk) { if (!ISFFT(c)) tile(d); XMapWindow(dis, c->win); }
+    if (currdeskidx == newdsk) { if (!ISFFT(c)) tile(d); if (show) XMapWindow(dis, c->win); }
     else if (follow) change_desktop(&(Arg){.i = newdsk});
     focus(c, d);
 
@@ -1141,6 +1142,15 @@ void tile(Desktop *d) {
     if (!d->head || d->mode == FLOAT) return; /* nothing to arange */
     layout[d->head->next ? d->mode:MONOCLE](wh + (d->sbar ? 0:PANEL_HEIGHT),
                                     (TOP_PANEL && d->sbar ? PANEL_HEIGHT:0), d);
+}
+
+/**
+ * toggle visibility of all windows in all desktops
+ */
+void showhide(void) {
+    show = !show;
+    for (Client *c = desktops[currdeskidx].head; c; c = c->next)
+        (show) ? XMapWindow(dis, c->win):XUnmapWindow(dis, c->win);
 }
 
 /**
