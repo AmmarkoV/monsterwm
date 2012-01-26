@@ -21,7 +21,7 @@
 #define XMVRSZ(dis, win, x, y, w, h) XMoveResizeWindow(dis, win, 0 + (x), 0 + (y), w, h)
 
 enum { RESIZE, MOVE };
-enum { TILE, MONOCLE, BSTACK, GRID, FLOAT, MODES };
+enum { TILE, MONOCLE, BSTACK, GRID, FLOAT, FIBONACCI, MODES };
 enum { WM_PROTOCOLS, WM_DELETE_WINDOW, WM_COUNT };
 enum { NET_SUPPORTED, NET_FULLSCREEN, NET_WM_STATE, NET_ACTIVE, NET_COUNT };
 
@@ -127,6 +127,7 @@ static void deletewindow(Window w);
 static void desktopinfo(void);
 static void destroynotify(XEvent *e);
 static void enternotify(XEvent *e);
+static void fibonacci(int h, int y, Desktop *d);
 static void focus(Client *c, Desktop *d);
 static void focusin(XEvent *e);
 static void focusurgent();
@@ -213,7 +214,7 @@ static void (*events[LASTEvent])(XEvent *e) = {
  * d        - the desktop to tile its clients
  */
 static void (*layout[MODES])(int h, int y, Desktop *d) = {
-    [TILE] = stack, [BSTACK] = stack, [GRID] = grid, [MONOCLE] = monocle,
+    [TILE] = stack, [BSTACK] = stack, [GRID] = grid, [MONOCLE] = monocle, [FIBONACCI] = fibonacci
 };
 
 /**
@@ -448,6 +449,23 @@ void enternotify(XEvent *e) {
 
     if (FOLLOW_MOUSE && wintoclient(e->xcrossing.window, &c, &d) && e->xcrossing.mode == NotifyNormal
         && e->xcrossing.detail != NotifyInferior && e->xcrossing.window != d->curr->win) focus(c, d);
+}
+
+/**
+ * fibonacci mode / fibonacci layout
+ * tile the windows based on the fibonacci series pattern.
+ * arrange windows in such a way that every new window shares
+ * half the space of the space taken by the last window.
+ */
+void fibonacci(int hh, int cy, Desktop *d) {
+    int j = -1, cx = 0, cw = ww - BORDER_WIDTH, ch = hh - BORDER_WIDTH;
+    for (Client *n, *c = d->head; c; c = c->next) {
+        if (ISFFT(c)) continue; else j++;
+        for (n = c->next; n; n = n->next) if (!ISFFT(n)) break;
+        if (n) (j&1) ? (ch /= 2)  : (cw /= 2);
+        if (j) (j&1) ? (cx += cw) : (cy += ch);
+        XMVRSZ(dis, c->win, cx, cy, cw - BORDER_WIDTH, ch - BORDER_WIDTH);
+    }
 }
 
 /**
