@@ -94,9 +94,10 @@ typedef struct Client {
  * curr - the currently highlighted window
  * prev - the client that previously had focus
  * sbar - the visibility status of the panel/statusbar
+ * nm   - the number of windows in master area
  */
 typedef struct {
-    int mode, masz, sasz;
+    int mode, masz, sasz, nm;
     Client *head, *curr, *prev;
     Bool sbar;
 } Desktop;
@@ -144,6 +145,7 @@ static void move_up();
 static void moveresize(const Arg *arg);
 static void mousemotion(const Arg *arg);
 static void next_win();
+static void nmaster(const Arg *arg);
 static Client* prevclient(Client *c, Desktop *d);
 static void prev_win();
 static void propertynotify(XEvent *e);
@@ -847,6 +849,15 @@ void next_win(void) {
 }
 
 /**
+ * increase or decrease the number
+ * of windows in the master area
+ */
+void nmaster(const Arg *arg) {
+    Desktop *d = &desktops[currdeskidx];
+    if ((d->nm += arg->i) >= 1) tile(d); else d->nm -= arg->i;
+}
+
+/**
  * get the previous client from the given
  * if no such client, return NULL
  */
@@ -984,7 +995,7 @@ void setup(void) {
 
     /* initialize mode and panel visibility for each desktop */
     for (unsigned int d = 0; d < DESKTOPS; d++)
-        desktops[d] = (Desktop){ .mode = DEFAULT_MODE, .sbar = SHOW_PANEL };
+        desktops[d] = (Desktop){ .mode = DEFAULT_MODE, .sbar = SHOW_PANEL, .nm = NMASTER };
 
     /* get color for focused and unfocused client borders */
     win_focus = getcolor(FOCUS, screen);
@@ -1047,7 +1058,7 @@ void spawn(const Arg *arg) {
  */
 void stack(int hh, int cy, Desktop *d) {
     Client *c = NULL, *t = NULL; Bool b = (d->mode == BSTACK);
-    int n = 0, p = 0, z = b ? ww:hh, ma = (b ? hh:ww) * MASTER_SIZE + d->masz;
+    int n = 0, p = 0, z = b ? ww:hh, ma = (b ? hh:ww) * MASTER_SIZE + d->masz, w = d->nm;
 
     /* count stack windows and grab first non-floating, non-fullscreen window */
     for (t = d->head; t; t = t->next) if (!ISFFT(t)) { if (c) ++n; else c = t; }
@@ -1082,14 +1093,17 @@ void stack(int hh, int cy, Desktop *d) {
      * and also, does not result in gaps created on the bottom of the screen.
      */
     if (c && !n) XMVRSZ(dis, c->win, 0, cy, ww - 2*BORDER_WIDTH, hh - 2*BORDER_WIDTH);
-    if (!c || !n) return; else if (n > 1) { p = (z - d->sasz)%n + d->sasz; z = (z - d->sasz)/n; }
+    else if (!c || !n) return; else if (n - w <= 0) w = n;
+    else { p = (z - d->sasz)%((n -= w-1)) + d->sasz; z = (z - d->sasz)/n; }
 
-    /* tile the first non-floating, non-fullscreen window to cover the master area */
-    if (b) XMVRSZ(dis, c->win, 0, cy, ww - 2*BORDER_WIDTH, ma - BORDER_WIDTH);
-    else   XMVRSZ(dis, c->win, 0, cy, ma - BORDER_WIDTH, hh - 2*BORDER_WIDTH);
+    /* tile non-floating, non-fullscreen master windows to equally share the master area */
+    for (int i = 0; i < w; i++) {
+        if (b) XMVRSZ(dis, c->win, i * ww/w, cy, ww/w - 2*BORDER_WIDTH, ma - BORDER_WIDTH);
+        else   XMVRSZ(dis, c->win, 0, cy + i * hh/w, ma - BORDER_WIDTH, hh/w - 2*BORDER_WIDTH);
+        for (c = c->next; c && ISFFT(c); c = c->next);
+    }
 
     /* tile the next non-floating, non-fullscreen (and first) stack window adding p */
-    for (c = c->next; c && ISFFT(c); c = c->next);
     int cx = b ? 0:ma, cw = (b ? hh:ww) - 2*BORDER_WIDTH - ma, ch = z - BORDER_WIDTH;
     if (b) XMVRSZ(dis, c->win, cx, cy += ma, ch - BORDER_WIDTH + p, cw);
     else   XMVRSZ(dis, c->win, cx, cy, cw, ch - BORDER_WIDTH + p);
