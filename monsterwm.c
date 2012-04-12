@@ -119,6 +119,7 @@ typedef struct {
 static Client* addwindow(Window w, Desktop *d);
 static void buttonpress(XEvent *e);
 static void change_desktop(const Arg *arg);
+static void centerwindow();
 static void cleanup(void);
 static void client_to_desktop(const Arg *arg);
 static void clientmessage(XEvent *e);
@@ -277,6 +278,17 @@ void change_desktop(const Arg *arg) {
     if (d->curr) XUnmapWindow(dis, d->curr->win);
     if (n->head) { tile(n); focus(n->curr, n); }
     desktopinfo();
+}
+
+/**
+ * place the current window in the center of the screen floating
+ */
+void centerwindow(void) {
+    XWindowAttributes wa;
+    Desktop *d = &desktops[currdeskidx];
+    if (!d->curr || !XGetWindowAttributes(dis, d->curr->win, &wa)) return;
+    if (!d->curr->isfloat && !d->curr->istrans) { d->curr->isfloat = True; tile(d); focus(d->curr, d); }
+    XMoveWindow(dis, d->curr->win, (ww - wa.width)/2, (wh - wa.height)/2);
 }
 
 /**
