@@ -8,3 +8,20 @@
 	<X11/Xlib.h>
 	<assert.h>
 
+1342134446 source:/home/ammar/Documents/Programming/monsterwm/src/monsterwm.c
+	<stdlib.h>
+	<stdio.h>
+	<err.h>
+	<stdarg.h>
+	<unistd.h>
+	<string.h>
+	<signal.h>
+	<sys/wait.h>
+	<X11/Xutil.h>
+	<X11/XKBlib.h>
+	<X11/Xproto.h>
+	<X11/Xatom.h>
+	"config.h"
+
+1342135064 /home/ammar/Documents/Programming/monsterwm/src/config.h
+
