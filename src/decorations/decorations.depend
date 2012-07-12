@@ -4,9 +4,8 @@
 	<assert.h>
 	<unistd.h>
 
-1342134196 source:/home/ammar/Documents/Programming/monsterwm/src/decorations/decorations.c
+1342137133 source:/home/ammar/Documents/Programming/monsterwm/src/decorations/decorations.c
 	<X11/Xlib.h>
-	<assert.h>
 
 1342134446 source:/home/ammar/Documents/Programming/monsterwm/src/monsterwm.c
 	<stdlib.h>
