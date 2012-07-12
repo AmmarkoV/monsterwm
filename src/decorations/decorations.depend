@@ -1,0 +1,10 @@
+# depslib dependency file v1.0
+1342097731 source:/home/ammar/Documents/Programming/monsterwm/decorations/main.c
+	<X11/Xlib.h>
+	<assert.h>
+	<unistd.h>
+
+1342134196 source:/home/ammar/Documents/Programming/monsterwm/src/decorations/decorations.c
+	<X11/Xlib.h>
+	<assert.h>
+

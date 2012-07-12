@@ -13,14 +13,17 @@ X11LIB = /usr/lib/X11
 INCS = -I. -I/usr/include -I${X11INC}
 LIBS = -L/usr/lib -lc -L${X11LIB} -lX11
 
-CFLAGS   = -s -Os -std=c99 -pedantic -Wall -Wextra ${INCS} -DVERSION=\"${VERSION}\"
+CFLAGS   = -s -O3 -fexpensive-optimizations -march=native -mtune=native -pedantic -Wall -Wextra ${INCS} -DVERSION=\"${VERSION}\"
 LDFLAGS  = -s ${LIBS}
 
 CC 	 = cc
 EXEC = ${WMNAME}
 
-SRC = ${WMNAME}.c
-OBJ = ${SRC:.c=.o}
+OBJ = ${WMNAME}.o
+SRC = src/${SRC:.o=.c}
+
+#SRC = src/${WMNAME}.c
+#OBJ = ${SRC:.c=.o}
 
 all: options ${WMNAME}
 
@@ -38,10 +41,10 @@ ${OBJ}: config.h
 
 config.h:
 	@echo creating $@ from config.def.h
-	@cp config.def.h $@
+	@cp src/config.def.h src/$@
 
 ${WMNAME}: ${OBJ}
-	@echo CC -o $@
+	@echo CC -o $@  ${OBJ} ${LDFLAGS}
 	@${CC} -o $@ ${OBJ} ${LDFLAGS}
 
 clean:
