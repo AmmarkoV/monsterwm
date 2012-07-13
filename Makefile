@@ -19,8 +19,12 @@ LDFLAGS  = -s ${LIBS}
 CC 	 = cc
 EXEC = ${WMNAME}
 
+
+SRC = src/${WMNAME}.c
 OBJ = ${WMNAME}.o
-SRC = src/${SRC:.o=.c}
+
+#OBJ = ${WMNAME}.o
+#SRC = src/${SRC:.o=.c}
 
 all: options ${WMNAME}
 

@@ -21,6 +21,8 @@ const unsigned long    barInactiveColor1 = 0x00777777;
 const unsigned long    barInactiveColor2 = 0x00999999;
 const unsigned long    barInactiveColor3 = 0x00aaaaaa;
 
+#define inside(X,Y,WIDTH,HEIGHT,PROC_X,PROC_Y)  ( ( (PROC_X) > (X) )&&( (PROC_Y) > (Y) )&&( (PROC_X) < (X+WIDTH) )&&( (PROC_Y) < (Y+HEIGHT) ) )
+
 
 void drawWindowBar(unsigned int x,unsigned int y,unsigned int barWidth,unsigned int barHeight,unsigned short settings,char * message,Display *dpy)
 {
@@ -105,16 +107,23 @@ void drawWindowBar(unsigned int x,unsigned int y,unsigned int barWidth,unsigned 
       }
 }
 
+int windowBarButtonClicked(unsigned int x,unsigned int y,unsigned int barWidth,unsigned int barHeight)
+{
 
+}
 
 main()
 {
+      //Test
+      if (!inside(0,0,400,60,50,50)) return 1;
+
       // Open the display
       Display *dpy = XOpenDisplay(0);
       if (!dpy ) return 1;
 
       drawWindowBar(0,0,400,20,FOCUSED_WINDOW|HIGHLIGHT_CLOSE|ACTIVE_BUTTON,"Title of window goes here",dpy);
      // drawWindowBar(0,20,400,20,FOCUSED_WINDOW|HIGHLIGHT_MINIMIZE,"Title of window goes here",dpy);
+
 
       return 0;
 }
