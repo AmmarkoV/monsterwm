@@ -1,6 +1,6 @@
 # Makefile for monsterwm - see LICENSE for license and copyright information
 
-VERSION = cookies-git
+VERSION = cookies-and-decorations-git
 WMNAME  = monsterwm
 
 PREFIX ?= /usr/local
@@ -13,7 +13,7 @@ X11LIB = /usr/lib/X11
 INCS = -I. -I/usr/include -I${X11INC}
 LIBS = -L/usr/lib -lc -L${X11LIB} -lX11
 
-CFLAGS   = -s -O3 -fexpensive-optimizations -march=native -mtune=native -pedantic -Wall -Wextra ${INCS} -DVERSION=\"${VERSION}\"
+CFLAGS   = -s -O3 -fexpensive-optimizations -march=native -mtune=native -Wall -Wextra ${INCS} -DVERSION=\"${VERSION}\"
 LDFLAGS  = -s ${LIBS}
 
 CC 	 = cc
@@ -21,9 +21,6 @@ EXEC = ${WMNAME}
 
 OBJ = ${WMNAME}.o
 SRC = src/${SRC:.o=.c}
-
-#SRC = src/${WMNAME}.c
-#OBJ = ${SRC:.c=.o}
 
 all: options ${WMNAME}
 
@@ -44,7 +41,7 @@ config.h:
 	@cp src/config.def.h src/$@
 
 ${WMNAME}: ${OBJ}
-	@echo CC -o $@  ${OBJ} ${LDFLAGS}
+	@echo ${CC} -o $@  ${OBJ} ${LDFLAGS}
 	@${CC} -o $@ ${OBJ} ${LDFLAGS}
 
 clean:
