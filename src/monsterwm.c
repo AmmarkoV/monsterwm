@@ -19,7 +19,7 @@
 #define ISFFT(c)        (c->isfullscrn || c->isfloating || c->istransient)
 /* wrapper to automatically move/resize windows used by multi-monitor branch */
 #define XMVRSZ(dis, win, x, y, w, h) XMoveResizeWindow(dis, win, 0 + (x), 0 + (y), w, h)
-
+#define insideRect(X,Y,WIDTH,HEIGHT,PROC_X,PROC_Y)  ( ( (PROC_X) > (X) )&&( (PROC_Y) > (Y) )&&( (PROC_X) < (X+WIDTH) )&&( (PROC_Y) < (Y+HEIGHT) ) )
 
 const char * MonsterWM_Version="1.0";
 
@@ -77,10 +77,12 @@ typedef struct {
  * istransient is separate from isfloating as floating window can be reset
  * to their tiling positions, while the transients will always be floating
  */
-typedef struct Client {
+typedef struct Client
+{
     struct Client *next;
     Bool isurgent, istransient, isfullscrn, isfloating;
     Window win;
+    //Window bar;
 } Client;
 
 /* properties of each desktop
@@ -170,9 +172,9 @@ static int xerrorstart();
 
 #include "config.h"
 
-static Bool running = True, sbar = SHOW_PANEL;
-static int currdeskidx = 0, prevdeskidx = 0, retval = 0, mastersz = 0;
-static int screen, wh, ww, mode = DEFAULT_MODE, growth = 0;
+static Bool monsterWMRunning = True, monsterWMErrorFlag = 0 , sbar = SHOW_PANEL;
+static int currdeskidx = 0, prevdeskidx = 0, mastersz = 0;
+static int screen, screenHeight, screenWidth, mode = DEFAULT_MODE, growth = 0;
 static int (*xerrorxlib)(Display *, XErrorEvent *);
 static unsigned int numlockmask = 0, win_unfocus, win_focus;
 static Display *dis;
@@ -197,6 +199,92 @@ static void (*events[LASTEvent])(XEvent *e) = {
 static void (*layout[MODES])(int h, int y) = {
     [TILE] = stack, [BSTACK] = stack, [GRID] = grid, [MONOCLE] = monocle,
 };
+
+
+
+void drawWindowBar(unsigned int x,unsigned int y,unsigned int barWidth,unsigned int barHeight,unsigned short settings,char * message,Display *dpy)
+{
+      unsigned int barHeightMiddle = (unsigned int ) barHeight/2;
+
+      int blackColor = BlackPixel(dpy, DefaultScreen(dpy));
+      int whiteColor = WhitePixel(dpy, DefaultScreen(dpy));
+
+      unsigned long *barBackColor,*barColor1,*barColor2,*barColor3;
+      if (settings&FOCUSED_WINDOW) { barBackColor=&barActiveColor;   barColor1=&barActiveColor1;   barColor2=&barActiveColor2;   barColor3=&barActiveColor3; } else
+                                   { barBackColor=&barInactiveColor; barColor1=&barInactiveColor1; barColor2=&barInactiveColor2; barColor3=&barInactiveColor3; }
+
+      // Create the window
+      Window w = XCreateSimpleWindow(dpy, DefaultRootWindow(dpy), x,y, barWidth,barHeight,0, *barBackColor , *barBackColor);
+
+      // We want to get MapNotify events
+      XSelectInput(dpy, w, StructureNotifyMask);
+
+      // "Map" the window (that is, make it appear on the screen)
+      XMapWindow(dpy, w);
+
+      // Create a "Graphics Context"
+      GC gc = XCreateGC(dpy, w, 0, 0);
+
+
+      // Wait for the MapNotify event
+
+      for(;;)
+      {
+	    XEvent e;
+	    XNextEvent(dpy, &e);
+	    if (e.type == MapNotify)
+	     {
+           //We want thick lines
+           XSetLineAttributes(dpy,gc,3,0,0,0);
+
+           // Drawing some gradient color on the bar
+           XSetForeground(dpy, gc, *barColor1);
+           XDrawLine(dpy, w, gc, 1, barHeightMiddle-6 , barWidth , barHeightMiddle-6 );
+           XDrawLine(dpy, w, gc, 1, barHeightMiddle+6 , barWidth , barHeightMiddle+6 );
+
+           XSetForeground(dpy, gc, *barColor2);
+           XDrawLine(dpy, w, gc, 1, barHeightMiddle-3 , barWidth , barHeightMiddle-3 );
+           XDrawLine(dpy, w, gc, 1, barHeightMiddle+3 , barWidth , barHeightMiddle+3 );
+
+           XSetForeground(dpy, gc, *barColor3);
+           XDrawLine(dpy, w, gc, 1, barHeightMiddle , barWidth , barHeightMiddle );
+
+
+	       //We want thin lines
+           XSetLineAttributes(dpy,gc,1,0,0,0);
+
+           //fprintf(stderr,"%u&%u=%u , %u&%u=%u \n",settings,HIGHLIGHT_MINIMIZE,settings&HIGHLIGHT_MINIMIZE,settings,HIGHLIGHT_MAXIMIZE,settings&HIGHLIGHT_MAXIMIZE);
+
+           if ( ((settings&ACTIVE_BUTTON)==ACTIVE_BUTTON) || ((settings&OVER_BUTTON)==OVER_BUTTON ) )
+           { //Minimize , Maximize or Close button are activated or hovered over , drawing them
+            if ((settings&OVER_BUTTON)==OVER_BUTTON) { XSetForeground(dpy, gc, overColor); } else
+            if ((settings&ACTIVE_BUTTON)==ACTIVE_BUTTON) { XSetForeground(dpy, gc, selectColor); }
+
+            if ((settings&HIGHLIGHT_MINIMIZE)==HIGHLIGHT_MINIMIZE) {  XFillRectangle(dpy,w,gc,barWidth-45,1,15,barHeight-2); } else
+            if ((settings&HIGHLIGHT_MAXIMIZE)==HIGHLIGHT_MAXIMIZE) {  XFillRectangle(dpy,w,gc,barWidth-30,1,15,barHeight-2); } else
+            if ((settings&HIGHLIGHT_CLOSE)==HIGHLIGHT_CLOSE)       {  XFillRectangle(dpy,w,gc,barWidth-15,1,15,barHeight-2); }
+           }
+
+           // Tell the GC we draw using the white color
+           XSetForeground(dpy, gc, blackColor);
+
+           XSetLineAttributes(dpy,gc,3,0,0,0);
+           /*Minimize Icon*/ XDrawLine(dpy, w ,  gc, barWidth - 40, barHeightMiddle , barWidth - 35 , barHeightMiddle );
+           /*Maximize Icon*/ XDrawRectangle(dpy, w ,  gc, barWidth - 25, 7 , 5, barHeight-14 );
+           /*X*/ XDrawLine(dpy, w, gc, barWidth - 10, 6 , barWidth - 4 , barHeight-6);
+                 XDrawLine(dpy, w, gc, barWidth - 10, barHeight-6 , barWidth - 4 , 6);
+
+
+           if ((settings&FOCUSED_WINDOW)!=FOCUSED_WINDOW)  XSetForeground(dpy, gc, whiteColor); // We are inactive so we want a white font due to the dark background
+           /* Title of Window */
+           XDrawString(dpy,w,gc, 40,15, "Title of window goes here",25); //todo add handler for large strings that appends ... and centers text
+
+           //Send the requests to the server
+           XFlush(dpy);
+	     }
+      }
+}
+
 
 /* create a new client and add the new window
  * window should notify of property change events */
@@ -497,7 +585,7 @@ void grid(int hh, int cy) {
     for (cols=0; cols <= n/2; cols++) if (cols*cols >= n) break; /* emulate square root */
     if (n == 0) return; else if (n == 5) cols = 2;
 
-    int rows = n/cols, ch = hh - BORDER_WIDTH, cw = (ww - BORDER_WIDTH)/(cols?cols:1);
+    int rows = n/cols, ch = hh - BORDER_WIDTH, cw = (screenWidth - BORDER_WIDTH)/(cols?cols:1);
     for (c=head; c; c=c->next) {
         if (ISFFT(c)) continue; else ++i;
         if (i/rows + 1 > cols - n%cols) rows = n/cols + 1;
@@ -564,7 +652,9 @@ void maprequest(XEvent *e) {
     Client *c = addwindow(e->xmaprequest.window);
     c->istransient = XGetTransientForHint(dis, c->win, &w);
     if ((c->isfloating = floating || mode == FLOAT || c->istransient))
-        XMoveWindow(dis, c->win, (ww - wa.width)/2, (wh - wa.height)/2);
+        XMoveWindow(dis, c->win, (screenWidth - wa.width)/2, (screenHeight - wa.height)/2);
+
+        drawWindowBar((screenWidth - wa.width)/2,(screenHeight - wa.height)/2-15,wa.width,15,FOCUSED_WINDOW,"Test",dis);
 
     int di; unsigned long dl; unsigned char *state = NULL; Atom da;
     if (XGetWindowProperty(dis, c->win, netatoms[NET_WM_STATE], 0L, sizeof da,
@@ -624,7 +714,7 @@ void mousemotion(const Arg *arg) {
 /* each window should cover all the available screen space */
 void monocle(int hh, int cy) {
     Client *c;
-    for (c=head; c; c=c->next) if (!ISFFT(c)) XMVRSZ(dis, c->win, 0, cy, ww, hh);
+    for (c=head; c; c=c->next) if (!ISFFT(c)) XMVRSZ(dis, c->win, 0, cy, screenWidth, hh);
 }
 
 /* move the current client, to current->next
@@ -748,8 +838,8 @@ void propertynotify(XEvent *e) {
 /* to quit just stop receiving and processing events
  * run() is stopped and control is back to main() */
 void quit(const Arg *arg) {
-    retval = arg->i;
-    running = False;
+    monsterWMErrorFlag = arg->i;
+    monsterWMRunning = False;
 }
 
 /* remove the specified client
@@ -776,8 +866,8 @@ void removeclient(Client *c) {
  * the size of a window can't be less than MINWSZ
  */
 void resize_master(const Arg *arg) {
-    int msz = (mode == BSTACK ? wh:ww) * MASTER_SIZE + (mastersz += arg->i);
-    if (msz < MINWSZ || (mode == BSTACK ? wh:ww) - msz < MINWSZ) mastersz -= arg->i;
+    int msz = (mode == BSTACK ? screenHeight:screenWidth) * MASTER_SIZE + (mastersz += arg->i);
+    if (msz < MINWSZ || (mode == BSTACK ? screenHeight:screenWidth) - msz < MINWSZ) mastersz -= arg->i;
     else tile();
 }
 
@@ -802,7 +892,7 @@ void rotate_filled(const Arg *arg) {
 /* main event loop - on receival of an event call the appropriate event handler */
 void run(void) {
     XEvent ev;
-    while(running && !XNextEvent(dis, &ev)) if (events[ev.type]) events[ev.type](&ev);
+    while(monsterWMRunning && !XNextEvent(dis, &ev)) if (events[ev.type]) events[ev.type](&ev);
 }
 
 /* save the current desktop's properties
@@ -826,7 +916,7 @@ void setfullscreen(Client *c, Bool fullscrn) {
     if (fullscrn != c->isfullscrn) XChangeProperty(dis, c->win,
             netatoms[NET_WM_STATE], XA_ATOM, 32, PropModeReplace, (unsigned char*)
             ((c->isfullscrn = fullscrn) ? &netatoms[NET_FULLSCREEN]:0), fullscrn);
-    if (fullscrn) XMVRSZ(dis, c->win, 0, 0, ww, wh + PANEL_HEIGHT);
+    if (fullscrn) XMVRSZ(dis, c->win, 0, 0, screenWidth, screenHeight + PANEL_HEIGHT);
     XConfigureWindow(dis, c->win, CWBorderWidth, &(XWindowChanges){0,0,0,0,fullscrn?0:BORDER_WIDTH,0,0});
 }
 
@@ -840,8 +930,8 @@ void setup(void) {
     screen = DefaultScreen(dis);
     root = RootWindow(dis, screen);
 
-    ww = XDisplayWidth(dis,  screen);
-    wh = XDisplayHeight(dis, screen) - PANEL_HEIGHT;
+    screenWidth = XDisplayWidth(dis,  screen);
+    screenHeight = XDisplayHeight(dis, screen) - PANEL_HEIGHT;
 
     unsigned int d;
     for (d=0; d<DESKTOPS;) desktops[d++] = (Desktop){ .mode = mode, .sbar = sbar, };
@@ -877,11 +967,12 @@ void setup(void) {
 
     grabkeys();
     change_desktop(&(Arg){.i = DEFAULT_DESKTOP});
+
+    desktopinfo(); /* zero out every desktop on (re)start */
 }
 
 void sigchld() {
-    if (signal(SIGCHLD, sigchld) == SIG_ERR)
-        err(EXIT_FAILURE, "cannot install SIGCHLD handler");
+    if (signal(SIGCHLD, sigchld) == SIG_ERR) err(EXIT_FAILURE, "cannot install SIGCHLD handler");
     while(0 < waitpid(-1, NULL, WNOHANG));
 }
 
@@ -897,7 +988,7 @@ void spawn(const Arg *arg) {
 /* arrange windows in normal or bottom stack tile */
 void stack(int hh, int cy) {
     Client *c = NULL, *t = NULL; Bool b = mode == BSTACK;
-    int n = 0, d = 0, z = b ? ww:hh, ma = (b ? wh:ww) * MASTER_SIZE + mastersz;
+    int n = 0, d = 0, z = b ? screenWidth:hh, ma = (b ? screenHeight:screenWidth) * MASTER_SIZE + mastersz;
 
     /* count stack windows and grab first non-floating, non-fullscreen window */
     for (t = head; t; t=t->next) if (!ISFFT(t)) { if (c) ++n; else c = t; }
@@ -905,7 +996,7 @@ void stack(int hh, int cy) {
     /* if there is only one window, it should cover the available screen space
      * if there is only one stack window (n == 1) then we don't care about growth
      * if more than one stack windows (n > 1) on screen then adjustments may be needed
-     *   - d is the num of pixels than remain when spliting
+     *   - d is the num of pixels than remain screenHeighten spliting
      *   the available width/height to the number of windows
      *   - z is the clients' height/width
      *
@@ -927,17 +1018,17 @@ void stack(int hh, int cy) {
      *     the first stack window so that it satisfies growth, and doesn't create gaps
      *     on the bottom of the screen.  */
     if (!c) return; else if (!n) {
-        XMVRSZ(dis, c->win, 0, cy, ww - 2*BORDER_WIDTH, hh - 2*BORDER_WIDTH);
+        XMVRSZ(dis, c->win, 0, cy, screenWidth - 2*BORDER_WIDTH, hh - 2*BORDER_WIDTH);
         return;
     } else if (n > 1) { d = (z - growth)%n + growth; z = (z - growth)/n; }
 
     /* tile the first non-floating, non-fullscreen window to cover the master area */
-    if (b) XMVRSZ(dis, c->win, 0, cy, ww - 2*BORDER_WIDTH, ma - BORDER_WIDTH);
+    if (b) XMVRSZ(dis, c->win, 0, cy, screenWidth - 2*BORDER_WIDTH, ma - BORDER_WIDTH);
     else   XMVRSZ(dis, c->win, 0, cy, ma - BORDER_WIDTH, hh - 2*BORDER_WIDTH);
 
     /* tile the next non-floating, non-fullscreen (first) stack window with growth|d */
     for (c=c->next; c && ISFFT(c); c=c->next);
-    int cx = b ? 0:ma, cw = (b ? hh:ww) - 2*BORDER_WIDTH - ma, ch = z - BORDER_WIDTH;
+    int cx = b ? 0:ma, cw = (b ? hh:screenWidth) - 2*BORDER_WIDTH - ma, ch = z - BORDER_WIDTH;
     if (b) XMVRSZ(dis, c->win, cx, cy += ma, ch - BORDER_WIDTH + d, cw);
     else   XMVRSZ(dis, c->win, cx, cy, cw, ch - BORDER_WIDTH + d);
 
@@ -973,7 +1064,7 @@ void switch_mode(const Arg *arg) {
 /* tile all windows of current desktop - call the handler tiling function */
 void tile(void) {
     if (!head || mode == FLOAT) return; /* nothing to arange */
-    layout[head->next ? mode:MONOCLE](wh + (sbar ? 0:PANEL_HEIGHT), (TOP_PANEL && sbar ? PANEL_HEIGHT:0));
+    layout[head->next ? mode:MONOCLE](screenHeight + (sbar ? 0:PANEL_HEIGHT), (TOP_PANEL && sbar ? PANEL_HEIGHT:0));
 }
 
 /* toggle visibility state of the panel */
@@ -1002,6 +1093,8 @@ Client* wintoclient(Window w) {
 /* There's no way to check accesses to destroyed windows, thus those cases are
  * ignored (especially on UnmapNotify's). Other types of errors call Xlibs
  * default error handler, which may call exit through xerrorlib. */
+int xerrorstart(void) { err(EXIT_FAILURE, "another window manager is already running"); }
+
 int xerror(Display *dis, XErrorEvent *ee) {
     if (ee->error_code == BadWindow   || (ee->error_code == BadAccess && ee->request_code == X_GrabKey)
     || (ee->error_code == BadMatch    && (ee->request_code == X_SetInputFocus
@@ -1013,19 +1106,21 @@ int xerror(Display *dis, XErrorEvent *ee) {
     return xerrorxlib(dis, ee);
 }
 
-int xerrorstart(void) {
-    err(EXIT_FAILURE, "another window manager is already running");
-}
 
-int main(int argc, char *argv[]) {
-    if (argc == 2 && !strncmp(argv[1], "-v", 3))
-        errx(EXIT_SUCCESS, "version-%s - by c00kiemon5ter >:3 omnomnomnom", MonsterWM_Version);
-    else if (argc != 1) errx(EXIT_FAILURE, "usage: man monsterwm");
+int main(int argc, char *argv[])
+{
+    //Some state checking ..!
+    if (argc == 2 && !strncmp(argv[1], "-v", 3)) errx(EXIT_SUCCESS, "version-%s - by c00kiemon5ter >:3 omnomnomnom", MonsterWM_Version); else
+    if (argc != 1) errx(EXIT_FAILURE, "usage: man monsterwm");
     if (!(dis = XOpenDisplay(NULL))) errx(EXIT_FAILURE, "cannot open display");
+
+
+    //The WM starts
     setup();
-    desktopinfo(); /* zero out every desktop on (re)start */
-    run();
+      //-----------
+          run();
+      //-----------
     cleanup();
     XCloseDisplay(dis);
-    return retval;
+    return monsterWMErrorFlag;
 }

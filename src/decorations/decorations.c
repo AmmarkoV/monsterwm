@@ -21,7 +21,7 @@ const unsigned long    barInactiveColor1 = 0x00777777;
 const unsigned long    barInactiveColor2 = 0x00999999;
 const unsigned long    barInactiveColor3 = 0x00aaaaaa;
 
-#define inside(X,Y,WIDTH,HEIGHT,PROC_X,PROC_Y)  ( ( (PROC_X) > (X) )&&( (PROC_Y) > (Y) )&&( (PROC_X) < (X+WIDTH) )&&( (PROC_Y) < (Y+HEIGHT) ) )
+#define insideRect(X,Y,WIDTH,HEIGHT,PROC_X,PROC_Y)  ( ( (PROC_X) > (X) )&&( (PROC_Y) > (Y) )&&( (PROC_X) < (X+WIDTH) )&&( (PROC_Y) < (Y+HEIGHT) ) )
 
 
 void drawWindowBar(unsigned int x,unsigned int y,unsigned int barWidth,unsigned int barHeight,unsigned short settings,char * message,Display *dpy)
@@ -115,7 +115,7 @@ int windowBarButtonClicked(unsigned int x,unsigned int y,unsigned int barWidth,u
 main()
 {
       //Test
-      if (!inside(0,0,400,60,50,50)) return 1;
+      if (!insideRect(0,0,400,60,50,50)) return 1;
 
       // Open the display
       Display *dpy = XOpenDisplay(0);
