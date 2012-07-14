@@ -281,8 +281,11 @@ void drawWindowBar(unsigned int x,unsigned int y,unsigned int barWidth,unsigned 
 
            //Send the requests to the server
            XFlush(dpy);
+           break;
 	     }
       }
+
+      XFreeGC(dpy, gc);
 }
 
 
